@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ObjectSize, SceneObject, Vec3 } from '../types';
 import { useAppStore } from '../store';
-import { formatBytes, getImageAssetMeta, saveImageFile } from '../lib/assets';
+import {
+  formatBytes,
+  getAssetMeta,
+  getImageAssetMeta,
+  saveImageFile,
+  saveVideoFile,
+} from '../lib/assets';
 
 function NumberInput({
   value,
@@ -296,6 +302,119 @@ function ImageField({ object }: { object: SceneObject }) {
   );
 }
 
+function VideoField({ object }: { object: SceneObject }) {
+  const updateObject = useAppStore((state) => state.updateObject);
+  const current = object.videoUrl ?? '';
+  const isAsset = current.startsWith('asset:');
+  const [draft, setDraft] = useState(isAsset ? '' : current);
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setDraft(current.startsWith('asset:') ? '' : current);
+  }, [current]);
+
+  const assetName = isAsset
+    ? getAssetMeta(current.slice('asset:'.length))?.name ?? 'Загруженное видео'
+    : null;
+
+  const applyUrl = () => {
+    const next = draft.trim();
+    if (!next) {
+      return;
+    }
+    updateObject(object.id, { videoUrl: next });
+    setStatus('Видео по ссылке');
+  };
+
+  const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) {
+      return;
+    }
+    if (!file.type.startsWith('video/')) {
+      setStatus('Это не видео');
+      return;
+    }
+    setBusy(true);
+    setStatus('Сохраняю видео в браузере…');
+    try {
+      const { url, meta } = await saveVideoFile(file);
+      updateObject(object.id, { videoUrl: url });
+      setStatus(`${meta.name} · ${formatBytes(meta.size)}`);
+    } catch {
+      setStatus('Не удалось сохранить видео. Попробуй файл меньшего размера.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="url-row">
+        <input
+          className="text-input"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              applyUrl();
+            }
+          }}
+          placeholder={
+            isAsset ? 'Активно загруженное видео' : 'https://…/video.mp4'
+          }
+          spellCheck={false}
+        />
+        <button
+          className="primary small"
+          onClick={applyUrl}
+          disabled={!draft.trim()}
+        >
+          Применить
+        </button>
+      </div>
+
+      <div className="or-separator">
+        <span>или</span>
+      </div>
+
+      <label className={busy ? 'file-button compact busy' : 'file-button compact'}>
+        <input
+          type="file"
+          accept="video/*"
+          onChange={handleFile}
+          disabled={busy}
+        />
+        <span>{busy ? 'Загрузка…' : 'Загрузить видеофайл'}</span>
+      </label>
+
+      {current ? (
+        <div className="asset-row">
+          <span className="asset-name" title={assetName ?? current}>
+            {assetName ?? current}
+          </span>
+          <button
+            className="ghost small"
+            onClick={() => updateObject(object.id, { videoUrl: '' })}
+          >
+            Убрать
+          </button>
+        </div>
+      ) : null}
+
+      {status ? <p className="hint">{status}</p> : null}
+      <p className="hint">
+        Видео задаётся для этого объекта. Если поле пустое, используется видео по
+        умолчанию. Нужна прямая ссылка на `.mp4`/`.webm` с CORS или локальный
+        файл. Локальный файл не входит в JSON сцены.
+      </p>
+    </>
+  );
+}
+
 export function ObjectInspector({ object }: { object: SceneObject }) {
   const updateObject = useAppStore((state) => state.updateObject);
   const duplicateObject = useAppStore((state) => state.duplicateObject);
@@ -513,9 +632,7 @@ export function ObjectInspector({ object }: { object: SceneObject }) {
         ) : null}
         {object.kind === 'glb' ? <GlbUrlField object={object} /> : null}
         {object.kind !== 'glb' && object.content === 'video' ? (
-          <p className="hint">
-            Uses the global video from the Video panel. Upload a file there or set an URL.
-          </p>
+          <VideoField object={object} />
         ) : null}
         {object.kind !== 'glb' && object.content === 'image' ? (
           <ImageField object={object} />

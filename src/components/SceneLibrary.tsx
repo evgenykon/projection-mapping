@@ -156,7 +156,7 @@ export function SceneLibrary() {
       {status ? <p className="hint">{status}</p> : null}
       <p className="hint">
         Видео, загруженное файлом, хранится локально и не входит в JSON. Для
-        переноса сцены используй прямую ссылку в блоке Video.
+        переноса сцены используй прямую ссылку в инспекторе видеообъекта.
       </p>
     </section>
   );

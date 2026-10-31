@@ -52,10 +52,11 @@ export function normalizeState(raw: Partial<SyncState>): SyncState {
         text: { ...DEFAULT_TEXT, ...(object.text ?? {}) },
         mask: Array.isArray(object.mask) ? object.mask : null,
         imageUrl: object.imageUrl ?? '',
+        videoUrl: object.videoUrl ?? raw.videoUrl ?? './sample.mp4',
         locked: Boolean(object.locked),
         visible: object.visible !== false,
       }))
-    : createDefaultObjects();
+    : createDefaultObjects(raw.videoUrl);
   const scenarios = Array.isArray(raw.scenarios)
     ? raw.scenarios.map((scenario) => ({
         ...scenario,
@@ -167,10 +168,19 @@ export function createObject(
     locked: false,
     mask: null,
     imageUrl: '',
+    videoUrl: '',
   };
 }
 
-export function createDefaultObjects(): SceneObject[] {
+const INITIAL_VIDEO_URL = (() => {
+  try {
+    return localStorage.getItem('pm-video-url') ?? './sample.mp4';
+  } catch {
+    return './sample.mp4';
+  }
+})();
+
+export function createDefaultObjects(videoUrl = INITIAL_VIDEO_URL): SceneObject[] {
   const screen = createObject(
     'plane',
     'Экран',
@@ -181,6 +191,7 @@ export function createDefaultObjects(): SceneObject[] {
     'video',
   );
   screen.size = { ...screen.size, width: 5.714, height: 3.214 };
+  screen.videoUrl = videoUrl;
   return [screen];
 }
 
@@ -203,14 +214,6 @@ export function keyframeValuesFromObject(object: SceneObject): KeyframeValues {
     effects: { ...object.effects },
   };
 }
-
-const INITIAL_VIDEO_URL = (() => {
-  try {
-    return localStorage.getItem('pm-video-url') ?? './sample.mp4';
-  } catch {
-    return './sample.mp4';
-  }
-})();
 
 export function createDefaultState(videoUrl = INITIAL_VIDEO_URL): SyncState {
   const state = normalizeState({ videoUrl });
@@ -510,7 +513,15 @@ export const useStore = create<Store>()((set, get) => {
       } catch {
         // ignore quota/private mode errors
       }
-      setAndEmit(() => ({ videoUrl: url }));
+      setAndEmit((state) => ({
+        videoUrl: url,
+        objects: state.objects.map((object) =>
+          object.content === 'video' &&
+          (!object.videoUrl || object.videoUrl === state.videoUrl)
+            ? { ...object, videoUrl: url }
+            : object,
+        ),
+      }));
     },
 
     loadScene: (state) => {

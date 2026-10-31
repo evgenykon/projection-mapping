@@ -33,6 +33,7 @@ export function EditorView({
   objects,
   projector,
   texture,
+  playing,
   selectedId,
   showWireframe,
   gizmoMode,
@@ -43,6 +44,7 @@ export function EditorView({
   objects: SceneObject[];
   projector: ProjectorConfig;
   texture: THREE.Texture | null;
+  playing: boolean;
   selectedId: string | null;
   showWireframe: boolean;
   gizmoMode: GizmoMode;
@@ -88,6 +90,7 @@ export function EditorView({
       <SceneObjects
         objects={objects}
         texture={texture}
+        playing={playing}
         selectedId={selectedId}
         showWireframe={showWireframe}
         calibration={false}

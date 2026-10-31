@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CameraControls } from './CameraControls';
-import { ContentControls } from './ContentControls';
 import { EditorView } from './EditorView';
 import { MaskEditor } from './MaskEditor';
 import { PlaybackControls } from './PlaybackControls';
@@ -126,6 +125,13 @@ export function Editor() {
       if (message.type === 'hello') {
         postMessage({ type: 'state', state: getSyncState() });
         markConnected();
+      }
+      if (message.type === 'control') {
+        const store = useStore.getState();
+        if (message.action === 'play') store.play();
+        if (message.action === 'pause') store.pause();
+        if (message.action === 'stop') store.stop();
+        if (message.action === 'blackout') store.toggleBlackout();
       }
     });
 
@@ -269,6 +275,7 @@ export function Editor() {
                   projector={projector}
                   objects={animatedObjects}
                   texture={texture}
+                  playing={playing}
                   selectedId={selectedId}
                   showWireframe={showWireframe}
                   calibration
@@ -299,6 +306,7 @@ export function Editor() {
                 objects={objects}
                 projector={projector}
                 texture={texture}
+                playing={playing}
                 selectedId={selectedId}
                 showWireframe={showWireframe}
                 gizmoMode={gizmoMode}
@@ -330,6 +338,7 @@ export function Editor() {
                 projector={projector}
                 objects={animatedObjects}
                 texture={texture}
+                playing={playing}
                 selectedId={selectedId}
                 showWireframe={showWireframe}
                 calibration={calibration}
@@ -366,7 +375,6 @@ export function Editor() {
             </section>
           ) : null}
 
-          <ContentControls />
           <CameraControls />
           <PlaybackControls />
           <div className="panel-footer">

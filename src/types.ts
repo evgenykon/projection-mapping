@@ -56,6 +56,7 @@ export interface SceneObject {
   locked: boolean;
   mask: Vec2[] | null;
   imageUrl: string;
+  videoUrl: string;
   glbUrl?: string;
 }
 
@@ -96,7 +97,10 @@ export interface SyncState {
   videoUrl: string;
 }
 
+export type ControlAction = 'play' | 'pause' | 'stop' | 'blackout';
+
 export type SyncMessage =
   | { type: 'state'; state: SyncState }
   | { type: 'hello' }
-  | { type: 'ready' };
+  | { type: 'ready' }
+  | { type: 'control'; action: ControlAction };

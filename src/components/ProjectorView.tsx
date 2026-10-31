@@ -9,6 +9,7 @@ export function ProjectorView({
   projector,
   objects,
   texture,
+  playing,
   selectedId,
   showWireframe,
   calibration,
@@ -19,6 +20,7 @@ export function ProjectorView({
   projector: ProjectorConfig;
   objects: SceneObject[];
   texture: THREE.Texture | null;
+  playing: boolean;
   selectedId: string | null;
   showWireframe: boolean;
   calibration: boolean;
@@ -37,6 +39,7 @@ export function ProjectorView({
         <SceneObjects
           objects={objects}
           texture={texture}
+          playing={playing}
           selectedId={selectedId}
           showWireframe={showWireframe}
           calibration={calibration}

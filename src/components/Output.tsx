@@ -2,6 +2,7 @@ import { Canvas } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { postMessage, subscribe } from '../lib/channel';
+import type { ControlAction } from '../types';
 import { useVideoTexture } from '../lib/useVideoTexture';
 import { applyScenario, getActiveScenario } from '../lib/scenario';
 import { ProjectorCamera } from './ProjectorCamera';
@@ -28,6 +29,14 @@ export function Output() {
   const [fullscreen, setFullscreen] = useState(false);
   const [idle, setIdle] = useState(false);
   const texture = useVideoTexture(videoUrl, playing);
+  const control = (action: ControlAction) => {
+    postMessage({ type: 'control', action });
+    const store = useStore.getState();
+    if (action === 'play') store.play();
+    if (action === 'pause') store.pause();
+    if (action === 'stop') store.stop();
+    if (action === 'blackout') store.toggleBlackout();
+  };
   const activeScenario = useMemo(
     () => getActiveScenario(scenarios, activeScenarioId),
     [scenarios, activeScenarioId],
@@ -138,7 +147,7 @@ export function Output() {
   return (
     <div
       ref={rootRef}
-      className={idle ? 'output idle' : 'output'}
+      className={idle && playing ? 'output idle' : 'output'}
       onDoubleClick={() => void toggleFullscreen()}
     >
       <div className="output-stage-frame">
@@ -153,6 +162,7 @@ export function Output() {
             <SceneObjects
               objects={animatedObjects}
               texture={texture}
+              playing={playing}
               selectedId={selectedId}
               showWireframe={showWireframe}
               calibration={calibration}
@@ -168,6 +178,16 @@ export function Output() {
           <span className="dot" />
           {linked ? 'Editor linked' : 'Waiting for editor'}
         </span>
+        <button onClick={() => control(playing ? 'pause' : 'play')}>
+          {playing ? 'Pause' : 'Play'}
+        </button>
+        <button onClick={() => control('stop')}>Stop</button>
+        <button
+          className={blackout ? 'active' : ''}
+          onClick={() => control('blackout')}
+        >
+          {blackout ? 'Blackout on' : 'Blackout'}
+        </button>
         <button onClick={() => void toggleFullscreen()}>
           {fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
         </button>

@@ -13,6 +13,7 @@ import { CalibrationPattern } from './CalibrationPattern';
 import { useMaskTexture } from '../lib/useMaskTexture';
 import { useTextTexture } from '../lib/useTextTexture';
 import { useImageTexture } from '../lib/useImageTexture';
+import { useVideoTexture } from '../lib/useVideoTexture';
 import { ProjectionMaterial } from './ProjectionMaterial';
 
 const DEG = Math.PI / 180;
@@ -166,16 +167,23 @@ function ContentMaterial({
 function ObjectView({
   object,
   texture,
+  playing,
   groupRef,
   interactive,
   onSelect,
 }: {
   object: SceneObject;
   texture: THREE.Texture | null;
+  playing: boolean;
   groupRef?: (node: THREE.Group | null) => void;
   interactive: boolean;
   onSelect?: (id: string) => void;
 }) {
+  const objectVideoTexture = useVideoTexture(
+    object.content === 'video' ? object.videoUrl : '',
+    playing,
+  );
+  const resolvedTexture = objectVideoTexture ?? texture;
   const rotation = object.rotation.map((value) => value * DEG) as [
     number,
     number,
@@ -200,7 +208,7 @@ function ObjectView({
       {object.kind === 'plane' ? (
         <mesh>
           <planeGeometry args={[object.size.width, object.size.height]} />
-          <ContentMaterial object={object} texture={texture} side={THREE.DoubleSide} />
+          <ContentMaterial object={object} texture={resolvedTexture} side={THREE.DoubleSide} />
         </mesh>
       ) : null}
 
@@ -211,7 +219,7 @@ function ObjectView({
               args={[object.size.width, object.size.height, object.size.depth]}
             />
             {object.content === 'none' ? (
-              <ContentMaterial object={object} texture={texture} side={THREE.FrontSide} />
+              <ContentMaterial object={object} texture={resolvedTexture} side={THREE.FrontSide} />
             ) : (
               <meshBasicMaterial color={object.color} />
             )}
@@ -219,7 +227,7 @@ function ObjectView({
           {object.content !== 'none' ? (
             <mesh position={[0, 0, object.size.depth / 2 + 0.002]}>
               <planeGeometry args={[object.size.width, object.size.height]} />
-              <ContentMaterial object={object} texture={texture} side={THREE.FrontSide} />
+              <ContentMaterial object={object} texture={resolvedTexture} side={THREE.FrontSide} />
             </mesh>
           ) : null}
         </>
@@ -235,7 +243,7 @@ function ObjectView({
               object.size.segments,
             ]}
           />
-          <ContentMaterial object={object} texture={texture} side={THREE.FrontSide} />
+          <ContentMaterial object={object} texture={resolvedTexture} side={THREE.FrontSide} />
         </mesh>
       ) : null}
 
@@ -248,7 +256,7 @@ function ObjectView({
               Math.max(16, Math.floor(object.size.segments / 2)),
             ]}
           />
-          <ContentMaterial object={object} texture={texture} side={THREE.FrontSide} />
+          <ContentMaterial object={object} texture={resolvedTexture} side={THREE.FrontSide} />
         </mesh>
       ) : null}
 
@@ -260,6 +268,7 @@ function ObjectView({
 export function SceneObjects({
   objects,
   texture,
+  playing,
   selectedId,
   showWireframe,
   calibration,
@@ -269,6 +278,7 @@ export function SceneObjects({
 }: {
   objects: SceneObject[];
   texture: THREE.Texture | null;
+  playing: boolean;
   selectedId: string | null;
   showWireframe: boolean;
   calibration: boolean;
@@ -298,6 +308,7 @@ export function SceneObjects({
             key={object.id}
             object={object}
             texture={texture}
+            playing={playing}
             groupRef={object.id === selectedId ? selectionRef : undefined}
             interactive={interactive}
             onSelect={onSelect}
