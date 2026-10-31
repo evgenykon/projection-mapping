@@ -1,7 +1,11 @@
+import { useCallback, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Grid, Line, OrbitControls } from '@react-three/drei';
-import type * as THREE from 'three';
-import { SceneContent } from './SceneContent';
+import { Grid, Line, OrbitControls, TransformControls } from '@react-three/drei';
+import * as THREE from 'three';
+import type { GizmoMode, SceneObject, Vec3 } from '../types';
+import { SceneObjects } from './SceneObjects';
+
+const RAD = 180 / Math.PI;
 
 function WallGuide() {
   return (
@@ -51,15 +55,70 @@ function ProjectorGizmo() {
   );
 }
 
-export function EditorView({ texture }: { texture: THREE.Texture | null }) {
+export function EditorView({
+  objects,
+  texture,
+  selectedId,
+  showWireframe,
+  gizmoMode,
+  selectedLocked,
+  onSelect,
+  onTransform,
+}: {
+  objects: SceneObject[];
+  texture: THREE.Texture | null;
+  selectedId: string | null;
+  showWireframe: boolean;
+  gizmoMode: GizmoMode;
+  selectedLocked: boolean;
+  onSelect: (id: string | null) => void;
+  onTransform: (
+    id: string,
+    patch: Pick<SceneObject, 'position' | 'rotation' | 'scale'>,
+  ) => void;
+}) {
+  const [selectedGroup, setSelectedGroup] = useState<THREE.Group | null>(null);
+
+  const handleObjectChange = useCallback(() => {
+    if (!selectedGroup || !selectedId) {
+      return;
+    }
+    const position: Vec3 = [
+      selectedGroup.position.x,
+      selectedGroup.position.y,
+      selectedGroup.position.z,
+    ];
+    const rotation: Vec3 = [
+      selectedGroup.rotation.x * RAD,
+      selectedGroup.rotation.y * RAD,
+      selectedGroup.rotation.z * RAD,
+    ];
+    const scale: Vec3 = [
+      selectedGroup.scale.x,
+      selectedGroup.scale.y,
+      selectedGroup.scale.z,
+    ];
+    onTransform(selectedId, { position, rotation, scale });
+  }, [onTransform, selectedGroup, selectedId]);
+
   return (
     <Canvas
       camera={{ position: [1.9, 1.75, 0.9], fov: 50 }}
       dpr={[1, 1.5]}
       gl={{ antialias: true }}
+      onPointerMissed={() => onSelect(null)}
     >
       <color attach="background" args={['#080b10']} />
-      <SceneContent texture={texture} calibration={false} />
+      <SceneObjects
+        objects={objects}
+        texture={texture}
+        selectedId={selectedId}
+        showWireframe={showWireframe}
+        calibration={false}
+        interactive
+        onSelect={(id) => onSelect(id)}
+        onSelectedGroup={setSelectedGroup}
+      />
       <WallGuide />
       <Grid
         args={[10, 10]}
@@ -75,7 +134,16 @@ export function EditorView({ texture }: { texture: THREE.Texture | null }) {
       />
       <axesHelper args={[1]} />
       <ProjectorGizmo />
+      {selectedGroup && selectedId && !selectedLocked ? (
+        <TransformControls
+          object={selectedGroup}
+          mode={gizmoMode}
+          size={0.8}
+          onObjectChange={handleObjectChange}
+        />
+      ) : null}
       <OrbitControls
+        makeDefault
         target={[0, 1.1, -2.4]}
         minDistance={0.6}
         maxDistance={10}

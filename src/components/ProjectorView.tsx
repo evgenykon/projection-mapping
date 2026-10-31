@@ -1,16 +1,22 @@
 import { Canvas } from '@react-three/fiber';
 import type * as THREE from 'three';
-import type { ProjectorConfig } from '../types';
+import type { ProjectorConfig, SceneObject } from '../types';
 import { ProjectorCamera } from './ProjectorCamera';
-import { SceneContent } from './SceneContent';
+import { SceneObjects } from './SceneObjects';
 
 export function ProjectorView({
   projector,
+  objects,
   texture,
+  selectedId,
+  showWireframe,
   calibration,
 }: {
   projector: ProjectorConfig;
+  objects: SceneObject[];
   texture: THREE.Texture | null;
+  selectedId: string | null;
+  showWireframe: boolean;
   calibration: boolean;
 }) {
   return (
@@ -20,7 +26,13 @@ export function ProjectorView({
       gl={{ antialias: true }}
     >
       <ProjectorCamera config={projector} />
-      <SceneContent texture={texture} calibration={calibration} />
+      <SceneObjects
+        objects={objects}
+        texture={texture}
+        selectedId={selectedId}
+        showWireframe={showWireframe}
+        calibration={calibration}
+      />
     </Canvas>
   );
 }

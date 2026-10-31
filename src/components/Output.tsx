@@ -1,11 +1,11 @@
 import { Canvas } from '@react-three/fiber';
 import { useEffect, useRef, useState } from 'react';
-import { DEFAULT_PROJECTOR } from '../store';
+import { DEFAULT_OBJECTS, DEFAULT_PROJECTOR } from '../store';
 import { postMessage, subscribe } from '../lib/channel';
 import { useVideoTexture } from '../lib/useVideoTexture';
 import type { SyncState } from '../types';
 import { ProjectorCamera } from './ProjectorCamera';
-import { SceneContent } from './SceneContent';
+import { SceneObjects } from './SceneObjects';
 
 type WakeLockLike = { release: () => Promise<void> };
 
@@ -131,8 +131,11 @@ export function Output() {
         gl={{ antialias: true }}
       >
         <ProjectorCamera config={projector} />
-        <SceneContent
+        <SceneObjects
+          objects={state?.objects ?? DEFAULT_OBJECTS}
           texture={texture}
+          selectedId={state?.selectedId ?? null}
+          showWireframe={state?.showWireframe ?? false}
           calibration={state?.calibration ?? false}
         />
       </Canvas>
