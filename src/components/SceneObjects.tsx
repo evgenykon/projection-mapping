@@ -11,6 +11,9 @@ import * as THREE from 'three';
 import type { SceneObject } from '../types';
 import { CalibrationPattern } from './CalibrationPattern';
 import { useMaskTexture } from '../lib/useMaskTexture';
+import { useTextTexture } from '../lib/useTextTexture';
+import { useImageTexture } from '../lib/useImageTexture';
+import { ProjectionMaterial } from './ProjectionMaterial';
 
 const DEG = Math.PI / 180;
 
@@ -119,29 +122,44 @@ function WireframeOverlay({ target }: { target: THREE.Object3D }) {
   return null;
 }
 
-function PlaneSurface({
+function ContentMaterial({
   object,
-  video,
-  contentColor,
+  texture,
+  side,
 }: {
   object: SceneObject;
-  video: THREE.Texture | undefined;
-  contentColor: string;
+  texture: THREE.Texture | null;
+  side: THREE.Side;
 }) {
   const alphaMap = useMaskTexture(object.mask);
+  const aspect =
+    object.kind === 'sphere'
+      ? 2
+      : object.kind === 'cylinder'
+        ? (2 * Math.PI * Math.max(object.size.radiusTop, object.size.radiusBottom)) /
+          object.size.height
+        : object.size.width / object.size.height;
+  const textTexture = useTextTexture(object.text, aspect);
+  const imageTexture = useImageTexture(
+    object.content === 'image' ? object.imageUrl : '',
+  );
+  const map =
+    object.content === 'video'
+      ? texture
+      : object.content === 'image'
+        ? imageTexture
+        : object.content === 'text'
+          ? textTexture
+          : null;
+  const color = object.content === 'none' ? object.color : '#ffffff';
   return (
-    <mesh>
-      <planeGeometry args={[object.size.width, object.size.height]} />
-      <meshBasicMaterial
-        map={video}
-        color={contentColor}
-        alphaMap={alphaMap ?? undefined}
-        transparent={Boolean(alphaMap)}
-        alphaTest={alphaMap ? 0.5 : 0}
-        side={THREE.DoubleSide}
-        toneMapped={false}
-      />
-    </mesh>
+    <ProjectionMaterial
+      map={map}
+      alphaMap={alphaMap}
+      color={color}
+      effects={object.effects}
+      side={side}
+    />
   );
 }
 
@@ -163,9 +181,6 @@ function ObjectView({
     number,
     number,
   ];
-  const video = object.content === 'video' && texture ? texture : undefined;
-  const contentColor = video ? '#ffffff' : object.color;
-
   const handleClick = interactive
     ? (event: ThreeEvent<MouseEvent>) => {
         event.stopPropagation();
@@ -183,30 +198,31 @@ function ObjectView({
       onClick={handleClick}
     >
       {object.kind === 'plane' ? (
-        <PlaneSurface
-          object={object}
-          video={video}
-          contentColor={contentColor}
-        />
+        <mesh>
+          <planeGeometry args={[object.size.width, object.size.height]} />
+          <ContentMaterial object={object} texture={texture} side={THREE.DoubleSide} />
+        </mesh>
       ) : null}
 
       {object.kind === 'box' ? (
-        <mesh>
-          <boxGeometry
-            args={[object.size.width, object.size.height, object.size.depth]}
-          />
-          <meshBasicMaterial attach="material-0" color={object.color} />
-          <meshBasicMaterial attach="material-1" color={object.color} />
-          <meshBasicMaterial attach="material-2" color={object.color} />
-          <meshBasicMaterial attach="material-3" color={object.color} />
-          <meshBasicMaterial
-            attach="material-4"
-            map={video}
-            color={contentColor}
-            toneMapped={false}
-          />
-          <meshBasicMaterial attach="material-5" color={object.color} />
-        </mesh>
+        <>
+          <mesh>
+            <boxGeometry
+              args={[object.size.width, object.size.height, object.size.depth]}
+            />
+            {object.content === 'none' ? (
+              <ContentMaterial object={object} texture={texture} side={THREE.FrontSide} />
+            ) : (
+              <meshBasicMaterial color={object.color} />
+            )}
+          </mesh>
+          {object.content !== 'none' ? (
+            <mesh position={[0, 0, object.size.depth / 2 + 0.002]}>
+              <planeGeometry args={[object.size.width, object.size.height]} />
+              <ContentMaterial object={object} texture={texture} side={THREE.FrontSide} />
+            </mesh>
+          ) : null}
+        </>
       ) : null}
 
       {object.kind === 'cylinder' ? (
@@ -219,11 +235,7 @@ function ObjectView({
               object.size.segments,
             ]}
           />
-          <meshBasicMaterial
-            map={video}
-            color={contentColor}
-            toneMapped={false}
-          />
+          <ContentMaterial object={object} texture={texture} side={THREE.FrontSide} />
         </mesh>
       ) : null}
 
@@ -236,11 +248,7 @@ function ObjectView({
               Math.max(16, Math.floor(object.size.segments / 2)),
             ]}
           />
-          <meshBasicMaterial
-            map={video}
-            color={contentColor}
-            toneMapped={false}
-          />
+          <ContentMaterial object={object} texture={texture} side={THREE.FrontSide} />
         </mesh>
       ) : null}
 

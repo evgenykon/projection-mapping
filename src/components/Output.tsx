@@ -1,22 +1,40 @@
 import { Canvas } from '@react-three/fiber';
-import { useEffect, useRef, useState } from 'react';
-import { DEFAULT_OBJECTS, DEFAULT_PROJECTOR } from '../store';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useStore } from '../store';
 import { postMessage, subscribe } from '../lib/channel';
 import { useVideoTexture } from '../lib/useVideoTexture';
-import type { SyncState } from '../types';
+import { applyScenario, getActiveScenario } from '../lib/scenario';
 import { ProjectorCamera } from './ProjectorCamera';
 import { SceneObjects } from './SceneObjects';
+import { WarpedStage } from './WarpedStage';
 
 type WakeLockLike = { release: () => Promise<void> };
 
 export function Output() {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [state, setState] = useState<SyncState | null>(null);
+  const projector = useStore((state) => state.projector);
+  const objects = useStore((state) => state.objects);
+  const scenarios = useStore((state) => state.scenarios);
+  const activeScenarioId = useStore((state) => state.activeScenarioId);
+  const currentTime = useStore((state) => state.currentTime);
+  const playing = useStore((state) => state.playing);
+  const blackout = useStore((state) => state.blackout);
+  const calibration = useStore((state) => state.calibration);
+  const selectedId = useStore((state) => state.selectedId);
+  const showWireframe = useStore((state) => state.showWireframe);
+  const videoUrl = useStore((state) => state.videoUrl);
+  const quad = useStore((state) => state.quad);
+  const [linked, setLinked] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [idle, setIdle] = useState(false);
-  const texture = useVideoTexture(
-    state?.videoUrl ?? './sample.mp4',
-    state?.playing ?? false,
+  const texture = useVideoTexture(videoUrl, playing);
+  const activeScenario = useMemo(
+    () => getActiveScenario(scenarios, activeScenarioId),
+    [scenarios, activeScenarioId],
+  );
+  const animatedObjects = useMemo(
+    () => applyScenario(objects, activeScenario, currentTime),
+    [objects, activeScenario, currentTime],
   );
 
   useEffect(() => {
@@ -25,7 +43,8 @@ export function Output() {
     const interval = window.setInterval(sendHello, 2000);
     const unsubscribe = subscribe((message) => {
       if (message.type === 'state') {
-        setState(message.state);
+        useStore.getState().replaceState(message.state);
+        setLinked(true);
       }
     });
     return () => {
@@ -116,43 +135,45 @@ export function Output() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  const projector = state?.projector ?? DEFAULT_PROJECTOR;
-
   return (
     <div
       ref={rootRef}
       className={idle ? 'output idle' : 'output'}
       onDoubleClick={() => void toggleFullscreen()}
     >
-      <Canvas
-        className="output-canvas"
-        camera={{ position: projector.position, fov: projector.fov }}
-        dpr={[1, 2]}
-        gl={{ antialias: true }}
-      >
-        <ProjectorCamera config={projector} />
-        <SceneObjects
-          objects={state?.objects ?? DEFAULT_OBJECTS}
-          texture={texture}
-          selectedId={state?.selectedId ?? null}
-          showWireframe={state?.showWireframe ?? false}
-          calibration={state?.calibration ?? false}
-        />
-      </Canvas>
+      <div className="output-stage-frame">
+        <WarpedStage quad={quad}>
+          <Canvas
+            className="output-canvas"
+            camera={{ position: projector.position, fov: projector.fov }}
+            dpr={[1, 2]}
+            gl={{ antialias: true }}
+          >
+            <ProjectorCamera config={projector} />
+            <SceneObjects
+              objects={animatedObjects}
+              texture={texture}
+              selectedId={selectedId}
+              showWireframe={showWireframe}
+              calibration={calibration}
+            />
+          </Canvas>
+        </WarpedStage>
+      </div>
 
-      {state?.blackout ? <div className="blackout" /> : null}
+      {blackout ? <div className="blackout" /> : null}
 
       <div className="output-bar">
-        <span className={state ? 'connection ok' : 'connection'}>
+        <span className={linked ? 'connection ok' : 'connection'}>
           <span className="dot" />
-          {state ? 'Editor linked' : 'Waiting for editor'}
+          {linked ? 'Editor linked' : 'Waiting for editor'}
         </span>
         <button onClick={() => void toggleFullscreen()}>
           {fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
         </button>
       </div>
 
-      {!state ? (
+      {!linked ? (
         <div className="waiting">
           <div className="waiting-card">
             <div className="brand-mark">PM</div>

@@ -66,6 +66,9 @@ export function ScenePanel() {
               {object.content === 'video' ? (
                 <span className="object-badge">video</span>
               ) : null}
+              {object.content === 'image' ? (
+                <span className="object-badge">image</span>
+              ) : null}
               {object.locked ? <span className="object-badge lock">lock</span> : null}
               <button
                 className="icon-button"

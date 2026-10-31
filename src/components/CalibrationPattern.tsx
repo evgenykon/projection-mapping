@@ -84,8 +84,8 @@ export function CalibrationPattern() {
   useEffect(() => () => texture.dispose(), [texture]);
 
   return (
-    <mesh position={[0, 1.35, -2.995]}>
-      <planeGeometry args={[2.4, 1.35]} />
+    <mesh position={[0, 1.2, 0.002]}>
+      <planeGeometry args={[5.714, 3.214]} />
       <meshBasicMaterial
         map={texture}
         transparent

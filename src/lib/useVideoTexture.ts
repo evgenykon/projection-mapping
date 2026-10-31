@@ -1,17 +1,68 @@
 import { useEffect, useState } from 'react';
 import * as THREE from 'three';
+import { resolveVideoSource } from './assets';
 
-export function useVideoTexture(url: string, playing: boolean): THREE.VideoTexture | null {
+export function useVideoTexture(
+  url: string,
+  playing: boolean,
+): THREE.VideoTexture | null {
+  const [resolved, setResolved] = useState<{
+    src: string;
+    owned: boolean;
+  } | null>(null);
   const [texture, setTexture] = useState<THREE.VideoTexture | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    let ownedUrl: string | null = null;
+    setResolved(null);
+    setTexture(null);
+    if (!url) {
+      return;
+    }
+
+    resolveVideoSource(url)
+      .then((result) => {
+        if (cancelled) {
+          if (result.owned) {
+            URL.revokeObjectURL(result.src);
+          }
+          return;
+        }
+        if (result.owned) {
+          ownedUrl = result.src;
+        }
+        setResolved(result);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setResolved(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      if (ownedUrl) {
+        URL.revokeObjectURL(ownedUrl);
+      }
+    };
+  }, [url]);
+
+  useEffect(() => {
+    if (!resolved) {
+      setTexture(null);
+      return;
+    }
+
     const video = document.createElement('video');
-    video.src = url;
+    video.src = resolved.src;
     video.loop = true;
     video.muted = true;
     video.playsInline = true;
     video.preload = 'auto';
-    video.crossOrigin = 'anonymous';
+    if (!resolved.owned) {
+      video.crossOrigin = 'anonymous';
+    }
     video.style.position = 'fixed';
     video.style.width = '1px';
     video.style.height = '1px';
@@ -36,7 +87,7 @@ export function useVideoTexture(url: string, playing: boolean): THREE.VideoTextu
       videoTexture.dispose();
       setTexture(null);
     };
-  }, [url]);
+  }, [resolved]);
 
   useEffect(() => {
     if (!texture) {
